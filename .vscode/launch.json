@@ -10,11 +10,11 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            // "program": "${workspaceFolder}/Service/Service/bin/x64/Debug/net6.0/Service.dll",
-            "program": "${workspaceFolder}/DataPipeline/MapFeatureGenerator/bin/x64/Debug/net6.0/MapFeatureGenerator.dll",
-            // "args": ["--input", "${workspaceFolder}/../andorra.bin"],
-            "args": ["-i", "${workspaceFolder}/Tests/TestOSMDataReader/MapData/andorra-10032022.osm.pbf",
-                 "-o", "${workspaceFolder}/../andorra.bin"],
+            "program": "${workspaceFolder}/Service/Service/bin/x64/Debug/net6.0/Service.dll",
+            // "program": "${workspaceFolder}/DataPipeline/MapFeatureGenerator/bin/x64/Debug/net6.0/MapFeatureGenerator.dll",
+            "args": ["--input", "${workspaceFolder}/../andorra.bin"],
+            // "args": ["-i", "${workspaceFolder}/Tests/TestOSMDataReader/MapData/andorra-10032022.osm.pbf",
+                //  "-o", "${workspaceFolder}/../andorra.bin"],
             "cwd": "${workspaceFolder}",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
             "console": "internalConsole",

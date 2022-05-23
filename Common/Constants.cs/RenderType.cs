@@ -3,7 +3,7 @@ namespace Mapster.Common.Constants;
 /// <summary>
 /// Defines all currently supported render types
 /// </summary>
-public enum RenderType
+public enum RenderType : byte
 {
     ROAD,
     WATERWAY,

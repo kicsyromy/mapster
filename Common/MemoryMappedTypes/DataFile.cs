@@ -1,6 +1,7 @@
 ﻿using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Mapster.Common.Constants;
 
 namespace Mapster.Common.MemoryMappedTypes;
 
@@ -22,6 +23,7 @@ public readonly ref struct MapFeatureData
     public long Id { get; init; }
 
     public GeometryType Type { get; init; }
+    public RenderType RenderType { get; init; }
     public ReadOnlySpan<char> Label { get; init; }
     public ReadOnlySpan<Coordinate> Coordinates { get; init; }
     public Dictionary<string, string> Properties { get; init; }
@@ -193,6 +195,7 @@ public unsafe class DataFile : IDisposable
                             Id = feature->Id,
                             Label = label,
                             Coordinates = coordinates,
+                            RenderType = feature->RenderType,
                             Type = feature->GeometryType,
                             Properties = properties
                         }))
