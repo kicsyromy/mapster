@@ -12,29 +12,25 @@ public static class TileRenderer
     public static BaseShape? Tessellate(this MapFeatureData feature, ref BoundingBox boundingBox, ref PriorityQueue<BaseShape, int> shapes)
     {
         BaseShape? baseShape = null;
-        var featureType = feature.Type;
-        var coordinates = feature.Coordinates;
 
         switch(feature.RenderType){
             case RenderType.ROAD:
-                baseShape = new Road(coordinates);
+                baseShape = new Road(feature.Coordinates, feature.GeometryType);
                 break;
             case RenderType.WATERWAY:
-                baseShape = new Waterway(coordinates, feature.Type);
+                baseShape = new Waterway(feature.Coordinates, feature.GeometryType);
                 break;
             case RenderType.BORDER:
-                baseShape = new Border(coordinates);
+                baseShape = new Border(feature.Coordinates, feature.GeometryType);
                 break;
             case RenderType.POPULATED_PLACE:
-                baseShape = new PopulatedPlace(coordinates, feature);
+                baseShape = new PopulatedPlace(feature.Coordinates, feature);
                 break;
             case RenderType.RAILWAY:
-                baseShape = new Railway(coordinates);
+                baseShape = new Railway(feature.Coordinates, feature.GeometryType);
                 break;
-            // case RenderType.UNKNOWN:
-            //     return null;
             default:
-                baseShape = new GeoFeature(coordinates, feature.Type, feature.RenderType);
+                baseShape = new GeoFeature(feature.Coordinates, feature.GeometryType, feature.RenderType);
                 break;
         }
 

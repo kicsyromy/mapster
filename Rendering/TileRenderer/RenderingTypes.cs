@@ -37,9 +37,6 @@ public struct GeoFeature : BaseShape
         }
         set { }
     }
-
-    public bool IsPolygon { get; set; }
-
     public GeometryType GeometryType { get; set; }
     public PointF[] ScreenCoordinates { get; set; }
     public RenderType Type { get; set; }
@@ -75,26 +72,20 @@ public struct GeoFeature : BaseShape
                 break;
         }
 
-        if (!IsPolygon)
+        switch (GeometryType)
         {
-            switch(GeometryType){
-                case GeometryType.Point:
-                    break;
-                case GeometryType.Polyline:
-                    var pen = new Pen(color, 1.2f);
-                    context.DrawLines(pen, ScreenCoordinates);
-                    break;
-            }
-        }
-        else
-        {
-            context.FillPolygon(color, ScreenCoordinates);
+            case GeometryType.Polyline:
+                var pen = new Pen(color, 1.2f);
+                context.DrawLines(pen, ScreenCoordinates);
+                break;
+            case GeometryType.Polygon:
+                context.FillPolygon(color, ScreenCoordinates);
+                break;
         }
     }
 
     public GeoFeature(ReadOnlySpan<Coordinate> c, GeometryType geometry, RenderType renderType)
     {
-        IsPolygon = geometry == GeometryType.Polygon;
         Type = renderType;
         GeometryType = geometry;
         ScreenCoordinates = new PointF[c.Length];
@@ -107,7 +98,7 @@ public struct GeoFeature : BaseShape
 public struct Railway : BaseShape
 {
     public int ZIndex { get; set; } = 45;
-    public bool IsPolygon { get; set; }
+    public GeometryType GeometryType { get; set; }
     public PointF[] ScreenCoordinates { get; set; }
 
     public void Render(IImageProcessingContext context)
@@ -121,9 +112,9 @@ public struct Railway : BaseShape
         context.DrawLines(penB, ScreenCoordinates);
     }
 
-    public Railway(ReadOnlySpan<Coordinate> c)
+    public Railway(ReadOnlySpan<Coordinate> c, GeometryType geometry)
     {
-        IsPolygon = false;
+        GeometryType = geometry;
         ScreenCoordinates = new PointF[c.Length];
         for (var i = 0; i < c.Length; i++)
             ScreenCoordinates[i] = new PointF((float)MercatorProjection.lonToX(c[i].Longitude),
@@ -137,7 +128,7 @@ public struct PopulatedPlace : BaseShape
     public PointF[] ScreenCoordinates { get; set; }
     public string Name { get; set; }
     public bool ShouldRender { get; set; }
-    public bool IsPolygon { get; set; }
+    public GeometryType GeometryType { get; set; }
 
     public void Render(IImageProcessingContext context)
     {
@@ -151,8 +142,8 @@ public struct PopulatedPlace : BaseShape
 
     public PopulatedPlace(ReadOnlySpan<Coordinate> c, MapFeatureData feature)
     {
-        IsPolygon = feature.Type == GeometryType.Polygon;
         ScreenCoordinates = new PointF[c.Length];
+        GeometryType = feature.GeometryType;
         for (var i = 0; i < c.Length; i++)
             ScreenCoordinates[i] = new PointF((float)MercatorProjection.lonToX(c[i].Longitude),
                 (float)MercatorProjection.latToY(c[i].Latitude));
@@ -168,15 +159,15 @@ public struct PopulatedPlace : BaseShape
             Name = string.IsNullOrWhiteSpace(name) ? feature.Label.ToString() : name;
             ShouldRender = true;
         }
-        ShouldRender = ShouldRender && feature.Type == GeometryType.Point;
+        ShouldRender = ShouldRender && feature.GeometryType == GeometryType.Point;
     }
 }
 
 public struct Border : BaseShape
 {
     public int ZIndex { get; set; } = 30;
-    public bool IsPolygon { get; set; }
     public PointF[] ScreenCoordinates { get; set; }
+    public GeometryType GeometryType { get; set; }
 
     public void Render(IImageProcessingContext context)
     {
@@ -184,9 +175,9 @@ public struct Border : BaseShape
         context.DrawLines(pen, ScreenCoordinates);
     }
 
-    public Border(ReadOnlySpan<Coordinate> c)
+    public Border(ReadOnlySpan<Coordinate> c, GeometryType geometry)
     {
-        IsPolygon = false;
+        GeometryType = geometry;
         ScreenCoordinates = new PointF[c.Length];
         for (var i = 0; i < c.Length; i++)
             ScreenCoordinates[i] = new PointF((float)MercatorProjection.lonToX(c[i].Longitude),
@@ -197,32 +188,25 @@ public struct Border : BaseShape
 public struct Waterway : BaseShape
 {
     public int ZIndex { get; set; } = 40;
-    public bool IsPolygon { get; set; }
     public GeometryType GeometryType { get; set; }
     public PointF[] ScreenCoordinates { get; set; }
 
     public void Render(IImageProcessingContext context)
     {
-        if (!IsPolygon)
+        switch (GeometryType)
         {
-            switch(GeometryType){
-                case GeometryType.Point:
-                    break;
-                case GeometryType.Polyline:
-                    var pen = new Pen(Color.LightBlue, 1.2f);
-                    context.DrawLines(pen, ScreenCoordinates);
-                    break;
-            }
-        }
-        else
-        {
-            context.FillPolygon(Color.LightBlue, ScreenCoordinates);
+            case GeometryType.Polyline:
+                var pen = new Pen(Color.LightBlue, 1.2f);
+                context.DrawLines(pen, ScreenCoordinates);
+                break;
+            case GeometryType.Polygon:
+                context.FillPolygon(Color.LightBlue, ScreenCoordinates);
+                break;
         }
     }
 
     public Waterway(ReadOnlySpan<Coordinate> c, GeometryType geometry)
     {
-        IsPolygon = geometry == GeometryType.Polygon;
         GeometryType = geometry;
         ScreenCoordinates = new PointF[c.Length];
         for (var i = 0; i < c.Length; i++)
@@ -234,12 +218,12 @@ public struct Waterway : BaseShape
 public struct Road : BaseShape
 {
     public int ZIndex { get; set; } = 50;
-    public bool IsPolygon { get; set; }
     public PointF[] ScreenCoordinates { get; set; }
+    public GeometryType GeometryType { get; set; }
 
     public void Render(IImageProcessingContext context)
     {
-        if (!IsPolygon)
+        if (GeometryType != GeometryType.Polygon)
         {
             var pen = new Pen(Color.Coral, 2.0f);
             var pen2 = new Pen(Color.Yellow, 2.2f);
@@ -248,9 +232,9 @@ public struct Road : BaseShape
         }
     }
 
-    public Road(ReadOnlySpan<Coordinate> c, bool isPolygon = false)
+    public Road(ReadOnlySpan<Coordinate> c, GeometryType geometry)
     {
-        IsPolygon = isPolygon;
+        GeometryType = geometry;
         ScreenCoordinates = new PointF[c.Length];
         for (var i = 0; i < c.Length; i++)
             ScreenCoordinates[i] = new PointF((float)MercatorProjection.lonToX(c[i].Longitude),
@@ -261,7 +245,7 @@ public struct Road : BaseShape
 public interface BaseShape
 {
     public int ZIndex { get; set; }
-    public bool IsPolygon { get; set; }
+    public GeometryType GeometryType { get; set; }
     public PointF[] ScreenCoordinates { get; set; }
 
     public void Render(IImageProcessingContext context);

@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using MapFeatureGenerator.Models;
 using MapFeatureGenerator.Utilities;
-using Mapster.Common.Constants;
 using Mapster.Common.MemoryMappedTypes;
 
 namespace MapFeatureGenerator.Services;
@@ -39,26 +38,16 @@ public class MapFileOperator {
 
             foreach (var way in mapData.Ways)
             {
-                var featureData = new FeatureData
-                {
-                    Id = way.Id,
-                    Coordinates = (totalCoordinateCount, new List<Coordinate>()),
-                    PropertyKeys = (totalPropertyCount, new List<string>(way.Tags.Count)),
-                    PropertyValues = (totalPropertyCount, new List<string>(way.Tags.Count))
-                };
-
-                featureIds.Add(way.Id);
                 var geometryType = GeometryType.Polyline;
+                var featurePropKeys = new List<string>();
+                var featurePropValues = new List<string>();
+                var featureCoordinates = new List<Coordinate>();
+                featureIds.Add(way.Id);
 
-                labels.Add(-1);
                 foreach (var tag in way.Tags)
                 {
-                    if (tag.Key == "name")
-                    {
-                        labels[^1] = totalPropertyCount * 2 + featureData.PropertyKeys.keys.Count * 2 + 1;
-                    }
-                    featureData.PropertyKeys.keys.Add(tag.Key);
-                    featureData.PropertyValues.values.Add(tag.Value);
+                    featurePropKeys.Add(tag.Key);
+                    featurePropValues.Add(tag.Value);
                 }
 
                 foreach (var nodeId in way.NodeIds)
@@ -68,50 +57,52 @@ public class MapFileOperator {
 
                     foreach (var (key, value) in node.Tags)
                     {
-                        if (!featureData.PropertyKeys.keys.Contains(key))
+                        if (!featurePropKeys.Contains(key))
                         {
-                            featureData.PropertyKeys.keys.Add(key);
-                            featureData.PropertyValues.values.Add(value);
+                            featurePropKeys.Add(key);
+                            featurePropValues.Add(value);
                         }
                     }
 
-                    featureData.Coordinates.coordinates.Add(new Coordinate(node.Latitude, node.Longitude));
+                    featureCoordinates.Add(new Coordinate(node.Latitude, node.Longitude));
                 }
 
-                if (featureData.Coordinates.coordinates[0] == featureData.Coordinates.coordinates[^1])
+                if (featureCoordinates[0] == featureCoordinates[^1])
                 {
                     geometryType = GeometryType.Polygon;
                 }
 
-                totalPropertyCount += featureData.PropertyKeys.keys.Count;
-                totalCoordinateCount += featureData.Coordinates.coordinates.Count;
-
-                if (featureData.PropertyKeys.keys.Count != featureData.PropertyValues.values.Count)
+                if (featurePropKeys.Count != featurePropValues.Count)
                 {
                     throw new InvalidDataContractException("Property keys and values should have the same count");
                 }
 
-                featureData.RenderType = TagParser.GetRenderType(featureData.PropertyKeys.keys, featureData.PropertyValues.values);
-                featureData.GeometryType = geometryType;
+                var renderType = TagParser.PopRenderType(ref featurePropKeys, ref featurePropValues);
+                var featureData = new FeatureData
+                {
+                    Id = way.Id,
+                    Coordinates = (totalCoordinateCount, featureCoordinates),
+                    PropertyKeys = (totalPropertyCount, featurePropKeys),
+                    PropertyValues = (totalPropertyCount, featurePropValues),
+                    RenderType = renderType,
+                    GeometryType = geometryType
+                };
+                var nameIndex = featurePropKeys.IndexOf("name");
+                labels.Add(nameIndex != -1 ? totalPropertyCount * 2 + nameIndex * 2 + 1 : nameIndex);
                 featuresData.Add(way.Id, featureData);
+                totalPropertyCount += featurePropKeys.Count;
+                totalCoordinateCount += featureCoordinates.Count;
             }
 
             foreach (var (nodeId, node) in mapData.Nodes.Where(n => !usedNodes.Contains(n.Key)))
             {
-                featureIds.Add(nodeId);
-
                 var featurePropKeys = new List<string>();
                 var featurePropValues = new List<string>();
-
-                labels.Add(-1);
+                featureIds.Add(nodeId);
+                
                 for (var i = 0; i < node.Tags.Count; ++i)
                 {
                     var tag = node.Tags[i];
-                    if (tag.Key == "name")
-                    {
-                        labels[^1] = totalPropertyCount * 2 + featurePropKeys.Count * 2 + 1;
-                    }
-
                     featurePropKeys.Add(tag.Key);
                     featurePropValues.Add(tag.Value);
                 }
@@ -120,7 +111,8 @@ public class MapFileOperator {
                 {
                     throw new InvalidDataContractException("Property keys and values should have the same count");
                 }
-    
+
+                var renderType = TagParser.PopRenderType(ref featurePropKeys, ref featurePropValues);
                 featuresData.Add(nodeId, new FeatureData
                 {
                     Id = nodeId,
@@ -129,11 +121,12 @@ public class MapFileOperator {
                         new Coordinate(node.Latitude, node.Longitude)
                     }),
                     GeometryType = GeometryType.Point,
-                    RenderType = TagParser.GetRenderType(featurePropKeys, featurePropValues),
+                    RenderType = renderType,
                     PropertyKeys = (totalPropertyCount, featurePropKeys),
                     PropertyValues = (totalPropertyCount, featurePropValues)
                 });
-
+                var nameIndex = featurePropKeys.IndexOf("name");
+                labels.Add(nameIndex != -1 ? totalPropertyCount * 2 + nameIndex * 2 + 1 : nameIndex);
                 totalPropertyCount += featurePropKeys.Count;
                 ++totalCoordinateCount;
             }
