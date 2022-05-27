@@ -24,7 +24,88 @@ public readonly ref struct MapFeatureData
     public GeometryType Type { get; init; }
     public ReadOnlySpan<char> Label { get; init; }
     public ReadOnlySpan<Coordinate> Coordinates { get; init; }
-    public Dictionary<string, string> Properties { get; init; }
+    public enum PropertiesKeysEnum
+    {
+        natural = 0,
+        place = 1,
+        boundary = 2,
+        admin_level = 3,
+        name = 4,
+        highway = 5,
+        water = 6,
+        railway = 7,
+        landuse = 8,
+        building = 9,
+        leisure = 10,
+        amenity = 11
+    }
+    public struct PropertiesValueStruct
+    {
+        public enum PropertiesValuesEnum
+        {
+            fell = 0,
+            grassland = 0,
+            heath = 0,
+            moor = 0,
+            scrub = 0,
+            wetland = 0,
+            wood = 1,
+            tree_row = 1,
+            bare_rock = 2,
+            rock = 2,
+            scree = 2,
+            beach = 3,
+            sand = 3,
+            water = 4,
+            city = 5,
+            town = 5,
+            locality = 5,
+            hamlet = 5,
+            administrative = 6,
+            two = 7,
+            motorway = 8,
+            trunk = 8,
+            primary = 8,
+            secondary = 8,
+            tertiary = 8,
+            unclassified = 8,
+            road = 8,
+            forest = 9,
+            orchard = 9,
+            residential = 10,
+            cemetery = 10,
+            industrial = 10,
+            commercial = 10,
+            square = 10,
+            construction = 10,
+            military = 10,
+            quarry = 10,
+            restaurant = 10,
+            brownfield = 10,
+            farm = 11,
+            meadow = 11,
+            grass = 11,
+            greenfield = 11,
+            recreation_ground = 11,
+            winter_sports = 11,
+            allotments = 11,
+            reservoir = 12,
+            basin = 12,
+            yes = 1000,
+            none = 1000
+        };
+
+        public PropertiesValuesEnum PropertiesValues { get; private set; }
+
+        public String name { get; private set; }
+
+        public PropertiesValueStruct(PropertiesValuesEnum prop, String name) : this()
+        {
+            this.PropertiesValues = prop;
+            this.name = name;
+        }
+    }
+    public Dictionary<PropertiesKeysEnum, PropertiesValueStruct> Properties { get; init; }
 }
 
 /// <summary>
@@ -181,11 +262,47 @@ public unsafe class DataFile : IDisposable
 
                 if (isFeatureInBBox)
                 {
-                    var properties = new Dictionary<string, string>(feature->PropertyCount);
+                    var properties = new Dictionary<MapFeatureData.PropertiesKeysEnum, MapFeatureData.PropertiesValueStruct>(feature->PropertyCount);
                     for (var p = 0; p < feature->PropertyCount; ++p)
                     {
                         GetProperty(header.Tile.Value.StringsOffsetInBytes, header.Tile.Value.CharactersOffsetInBytes, p * 2 + feature->PropertiesOffset, out var key, out var value);
-                        properties.Add(key.ToString(), value.ToString());
+
+                        Console.Write(key.ToString() + "-");
+                        Enum.TryParse(value.ToString(), out MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum myStatus);
+                        if (myStatus != MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.wetland)
+                            Console.WriteLine(myStatus);
+
+                        if (Enum.TryParse<MapFeatureData.PropertiesKeysEnum>(key, out var convertedKey))
+                        {
+                            if (Enum.TryParse<MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum>(value, out var convertedValue))
+                            {
+                                Console.Write((int)convertedValue + '\n');
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(convertedValue, "");
+                                //propertiesValueStruct.PropertiesValues = ;
+                                //propertiesValueStruct.name = "";
+                                properties.Add(convertedKey, propertiesValueStruct);
+                            }
+                            else if (value == "2")
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.two, "");
+                                //propertiesValueStruct.PropertiesValues = MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.two;
+                                //propertiesValueStruct.name = "";
+                                properties.Add(convertedKey, propertiesValueStruct);
+                            }
+                            else if (value == "name")
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.none, value.ToString());
+                                //propertiesValueStruct.PropertiesValues = MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.none;
+                                //propertiesValueStruct.name = value.ToString();
+                                properties.Add(convertedKey, propertiesValueStruct);
+                            }
+                            //else
+                            //{
+                            //    Enum.TryParse(value.ToString(), out MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum myStatus);
+                            //    if (myStatus != MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.wetland)
+                            //        Console.WriteLine(myStatus);
+                            //}
+                        }
                     }
 
                     if (!action(new MapFeatureData

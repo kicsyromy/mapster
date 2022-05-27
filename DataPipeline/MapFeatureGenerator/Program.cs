@@ -70,14 +70,14 @@ public static class Program
     {
         var usedNodes = new HashSet<long>();
 
-        long featureIdCounter = -1;
         var featureIds = new List<long>();
         // var geometryTypes = new List<GeometryType>();
         // var coordinates = new List<(long id, (int offset, List<Coordinate> coordinates) values)>();
 
         var labels = new List<int>();
-        // var propKeys = new List<(long id, (int offset, IEnumerable<string> keys) values)>();
-        // var propValues = new List<(long id, (int offset, IEnumerable<string> values) values)>();
+        // cut from here
+        //var propKeys = new List<(long id, (int offset, IEnumerable<string> keys) values)>();
+        //var propValues = new List<(long id, (int offset, IEnumerable<string> values) values)>();
 
         using var fileWriter = new BinaryWriter(File.OpenWrite(filePath));
         var offsets = new Dictionary<int, long>(mapData.Tiles.Count);
@@ -95,10 +95,8 @@ public static class Program
 
         foreach (var (tileId, _) in mapData.Tiles)
         {
-            // FIXME: Not thread safe
             usedNodes.Clear();
 
-            // FIXME: Not thread safe
             featureIds.Clear();
             labels.Clear();
 
@@ -109,57 +107,363 @@ public static class Program
 
             foreach (var way in mapData.Ways)
             {
-                var featureId = Interlocked.Increment(ref featureIdCounter);
-
                 var featureData = new FeatureData
                 {
-                    Id = featureId,
+                    Id = way.Id,
                     Coordinates = (totalCoordinateCount, new List<Coordinate>()),
-                    PropertyKeys = (totalPropertyCount, new List<string>(way.Tags.Count)),
-                    PropertyValues = (totalPropertyCount, new List<string>(way.Tags.Count))
+                    PropertyKeys = (totalPropertyCount, new List<MapFeatureData.PropertiesKeysEnum>(way.Tags.Count)),
+                    PropertyValues = (totalPropertyCount, new List<MapFeatureData.PropertiesValueStruct>(way.Tags.Count))
                 };
 
+                featureIds.Add(way.Id);
                 var geometryType = GeometryType.Polyline;
 
                 labels.Add(-1);
+
+                MapFeatureData.PropertiesKeysEnum convertedKey;
+                MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum convertedValue;
+                //MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct();
+
+                var addedKey = true;
                 foreach (var tag in way.Tags)
                 {
-                    if (tag.Key == "name")
+                    addedKey = true;
+                    if (tag.Key.StartsWith("place"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.place);
+                    }
+                    else if (tag.Key.StartsWith("boundary"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.boundary);
+                    }
+                    else if (tag.Key.StartsWith("admin_level"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.admin_level);
+                    }
+                    else if (tag.Key.StartsWith("water"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.water);
+                    }
+                    else if (tag.Key.StartsWith("highway"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.highway);
+                    }
+                    else if (tag.Key.StartsWith("railway"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.railway);
+                    }
+                    else if (tag.Key.StartsWith("natural"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.natural);
+                    }
+                    else if (tag.Key.StartsWith("landuse"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.landuse);
+                    }
+                    else if (tag.Key.StartsWith("building"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.building);
+                    }
+                    else if (tag.Key.StartsWith("leisure"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.leisure);
+                    }
+                    else if (tag.Key.StartsWith("amenity"))
+                    {
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.amenity);
+                    }
+                    else if (tag.Key.StartsWith("name"))
                     {
                         labels[^1] = totalPropertyCount * 2 + featureData.PropertyKeys.keys.Count * 2 + 1;
+                        featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.name);
+                        MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.none, tag.Value);
+                        featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        addedKey = false;
                     }
-                    featureData.PropertyKeys.keys.Add(tag.Key);
-                    featureData.PropertyValues.values.Add(tag.Value);
+                    else
+                    {
+                        addedKey = false;
+                    }
+
+                    if (addedKey)
+                    {
+                        if (tag.Value.StartsWith("city"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.city, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("town"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.town, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("locality"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.locality, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("hamlet"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.hamlet, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("administrative"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.administrative, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("2"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.two, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("motorway") || tag.Value.StartsWith("trunk") || tag.Value.StartsWith("primary") ||
+                            tag.Value.StartsWith("secondary") || tag.Value.StartsWith("tertiary") || tag.Value.StartsWith("road") || tag.Value.StartsWith("path") ||
+                            tag.Value.StartsWith("service") || tag.Value.StartsWith("footway") || tag.Value.StartsWith("track") || tag.Value.StartsWith("steps"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.motorway, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+
+                        }
+                        else if (tag.Value.StartsWith("forest"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.forest, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("orchard"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.orchard, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("residential") || tag.Value.StartsWith("cemetery") || tag.Value.StartsWith("industrial") ||
+                            tag.Value.StartsWith("commercial") || tag.Value.StartsWith("square") || tag.Value.StartsWith("construction") ||
+                            tag.Value.StartsWith("military") || tag.Value.StartsWith("quarry") || tag.Value.StartsWith("brownfield") ||
+                            tag.Value.StartsWith("office") || tag.Value.StartsWith("apartment") || tag.Value.StartsWith("house"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.residential, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("farm") || tag.Value.StartsWith("meadow") || tag.Value.StartsWith("grass") ||
+                            tag.Value.StartsWith("greenfield") || tag.Value.StartsWith("recreation_ground") || tag.Value.StartsWith("winter_sports") ||
+                            tag.Value.StartsWith("allotments"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.farm, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("reservoir"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.reservoir, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("basin") || tag.Value.StartsWith("stream"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.basin, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("restaurant"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.restaurant, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("water") || tag.Value.StartsWith("river"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.water, "");
+
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("yes") || tag.Value.StartsWith("swimming") || tag.Value.StartsWith("parking"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.yes, "");
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                        }
+                        else
+                        {
+                            featureData.PropertyKeys.keys.RemoveAt(featureData.PropertyKeys.keys.Count() - 1);
+                        }
+                        // deleted converted values elif
+                    }
+                    foreach (var val in featureData.PropertyValues.values)
+                    {
+                        Enum.TryParse(val.ToString(), out MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum myStatus);
+                        if (myStatus != MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.wetland)
+                            Console.WriteLine("---" + myStatus.ToString());
+                        else
+                            Console.WriteLine("---" + (int)myStatus);
+                    }
                 }
 
                 foreach (var nodeId in way.NodeIds)
                 {
                     var node = mapData.Nodes[nodeId];
-                    if (TiligSystem.GetTile(new Coordinate(node.Latitude, node.Longitude)) != tileId)
-                    {
-                        continue;
-                    }
-
                     usedNodes.Add(nodeId);
 
                     foreach (var (key, value) in node.Tags)
                     {
-                        if (!featureData.PropertyKeys.keys.Contains(key))
+                        addedKey = true;
+                        if (key.StartsWith("place"))
                         {
-                            featureData.PropertyKeys.keys.Add(key);
-                            featureData.PropertyValues.values.Add(value);
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.place);
+                        }
+                        else if (key.StartsWith("boundary"))
+                        {
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.boundary);
+                        }
+                        else if (key.StartsWith("admin_level"))
+                        {
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.admin_level);
+                        }
+                        else if (key.StartsWith("water"))
+                        {
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.water);
+                        }
+                        else if (key.StartsWith("highway"))
+                        {
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.highway);
+                        }
+                        else if (key.StartsWith("railway"))
+                        {
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.railway);
+                        }
+                        else if (key.StartsWith("natural"))
+                        {
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.natural);
+                        }
+                        else if (key.StartsWith("landuse"))
+                        {
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.landuse);
+                        }
+                        else if (key.StartsWith("building"))
+                        {
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.building);
+                        }
+                        else if (key.StartsWith("leisure"))
+                        {
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.leisure);
+                        }
+                        else if (key.StartsWith("amenity"))
+                        {
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.amenity);
+                        }
+                        else if (key.StartsWith("name"))
+                        {
+                            labels[^1] = totalPropertyCount * 2 + featureData.PropertyKeys.keys.Count * 2 + 1;
+                            featureData.PropertyKeys.keys.Add(MapFeatureData.PropertiesKeysEnum.name);
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.none, value);
+                            featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            addedKey = false;
+                        }
+                        else
+                        {
+                            addedKey = false;
+                        }
+                        //else if (Enum.TryParse<MapFeatureData.PropertiesKeysEnum>(tag.Key, out convertedKey))
+                        //{
+                        //    featureData.PropertyKeys.keys.Add(convertedKey);
+                        //}
+
+                        if (addedKey)
+                        {
+                            if (value.StartsWith("city"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.city, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("town"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.town, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("locality"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.locality, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("hamlet"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.hamlet, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("administrative"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.administrative, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("2"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.two, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("motorway") || value.StartsWith("trunk") || value.StartsWith("primary") ||
+                                value.StartsWith("secondary") || value.StartsWith("tertiary") || value.StartsWith("road") || value.StartsWith("path") ||
+                                value.StartsWith("service") || value.StartsWith("footway") || value.StartsWith("track") || value.StartsWith("steps"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.motorway, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("forest"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.forest, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("orchard"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.orchard, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("residential") || value.StartsWith("cemetery") || value.StartsWith("industrial") ||
+                                value.StartsWith("commercial") || value.StartsWith("square") || value.StartsWith("construction") ||
+                                value.StartsWith("military") || value.StartsWith("quarry") || value.StartsWith("brownfield") ||
+                                value.StartsWith("office") || value.StartsWith("apartment") || value.StartsWith("house"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.residential, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("farm") || value.StartsWith("meadow") || value.StartsWith("grass") ||
+                                value.StartsWith("greenfield") || value.StartsWith("recreation_ground") || value.StartsWith("winter_sports") ||
+                                value.StartsWith("allotments"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.farm, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("reservoir"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.reservoir, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("basin") || value.StartsWith("stream"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.basin, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("restaurant"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.restaurant, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("water") || value.StartsWith("river"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.water, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else if (value.StartsWith("yes") || value.StartsWith("swimming") || value.StartsWith("parking"))
+                            {
+                                MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.yes, "");
+                                featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            }
+                            else
+                            {
+                                featureData.PropertyKeys.keys.RemoveAt(featureData.PropertyKeys.keys.Count() - 1);
+                            }
+                            //else if (Enum.TryParse<MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum>(value, out convertedValue))
+                            //{
+                            //    propertiesValueStruct.PropertiesValues = convertedValue;
+                            //    propertiesValueStruct.name = "";
+                            //    featureData.PropertyValues.values.Add(propertiesValueStruct);
+                            //}
                         }
                     }
 
                     featureData.Coordinates.coordinates.Add(new Coordinate(node.Latitude, node.Longitude));
-                }
-
-                // This feature is not located within this tile, skip it
-                if (featureData.Coordinates.coordinates.Count == 0)
-                {
-                    // Remove the last item since we added it preemptively
-                    labels.RemoveAt(labels.Count - 1);
-                    continue;
                 }
 
                 if (featureData.Coordinates.coordinates[0] == featureData.Coordinates.coordinates[^1])
@@ -176,33 +480,189 @@ public static class Program
                     throw new InvalidDataContractException("Property keys and values should have the same count");
                 }
 
-                featureIds.Add(featureId);
-                featuresData.Add(featureId, featureData);
+                featuresData.Add(way.Id, featureData);
             }
 
             foreach (var (nodeId, node) in mapData.Nodes.Where(n => !usedNodes.Contains(n.Key)))
             {
-                if (TiligSystem.GetTile(new Coordinate(node.Latitude, node.Longitude)) != tileId)
-                {
-                    continue;
-                }
+                featureIds.Add(nodeId);
 
-                var featureId = Interlocked.Increment(ref featureIdCounter);
-
-                var featurePropKeys = new List<string>();
-                var featurePropValues = new List<string>();
+                var featurePropKeys = new List<MapFeatureData.PropertiesKeysEnum>();
+                var featurePropValues = new List<MapFeatureData.PropertiesValueStruct>();
 
                 labels.Add(-1);
+                MapFeatureData.PropertiesKeysEnum convertedKey;
+                MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum convertedValue;
+                //MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct();
+
+                var addedKey = true;
+
                 for (var i = 0; i < node.Tags.Count; ++i)
                 {
                     var tag = node.Tags[i];
-                    if (tag.Key == "name")
+                    addedKey = true;
+                    if (tag.Key.StartsWith("place"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.place);
+                    }
+                    else if (tag.Key.StartsWith("boundary"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.boundary);
+                    }
+                    else if (tag.Key.StartsWith("admin_level"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.admin_level);
+                    }
+                    else if (tag.Key.StartsWith("water"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.water);
+                    }
+                    else if (tag.Key.StartsWith("highway"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.highway);
+                    }
+                    else if (tag.Key.StartsWith("railway"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.railway);
+                    }
+                    else if (tag.Key.StartsWith("natural"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.natural);
+                    }
+                    else if (tag.Key.StartsWith("landuse"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.landuse);
+                    }
+                    else if (tag.Key.StartsWith("building"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.building);
+                    }
+                    else if (tag.Key.StartsWith("leisure"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.leisure);
+                    }
+                    else if (tag.Key.StartsWith("amenity"))
+                    {
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.amenity);
+                    }
+                    else if (tag.Key.StartsWith("name"))
                     {
                         labels[^1] = totalPropertyCount * 2 + featurePropKeys.Count * 2 + 1;
+                        featurePropKeys.Add(MapFeatureData.PropertiesKeysEnum.name);
+                        MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.none, tag.Value);
+                        featurePropValues.Add(propertiesValueStruct);
+                        addedKey = false;
+                    }
+                    else
+                    {
+                        addedKey = false;
+                    }
+                    //else if (Enum.TryParse<MapFeatureData.PropertiesKeysEnum>(tag.Key, out convertedKey))
+                    //{
+                    //    featureData.PropertyKeys.keys.Add(convertedKey);
+                    //}
+
+                    if (addedKey)
+                    {
+                        if (tag.Value.StartsWith("city"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.city, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("town"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.town, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("locality"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.locality, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("hamlet"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.hamlet, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("administrative"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.administrative, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("2"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.two, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("motorway") || tag.Value.StartsWith("trunk") || tag.Value.StartsWith("primary") ||
+                            tag.Value.StartsWith("secondary") || tag.Value.StartsWith("tertiary") || tag.Value.StartsWith("road") || tag.Value.StartsWith("path") ||
+                            tag.Value.StartsWith("service") || tag.Value.StartsWith("footway") || tag.Value.StartsWith("track") || tag.Value.StartsWith("steps"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.motorway, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("forest"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.forest, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("orchard"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.orchard, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("residential") || tag.Value.StartsWith("cemetery") || tag.Value.StartsWith("industrial") ||
+                            tag.Value.StartsWith("commercial") || tag.Value.StartsWith("square") || tag.Value.StartsWith("construction") ||
+                            tag.Value.StartsWith("military") || tag.Value.StartsWith("quarry") || tag.Value.StartsWith("brownfield") ||
+                            tag.Value.StartsWith("office") || tag.Value.StartsWith("apartment") || tag.Value.StartsWith("house"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.residential, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("farm") || tag.Value.StartsWith("meadow") || tag.Value.StartsWith("grass") ||
+                            tag.Value.StartsWith("greenfield") || tag.Value.StartsWith("recreation_ground") || tag.Value.StartsWith("winter_sports") ||
+                            tag.Value.StartsWith("allotments"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.farm, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("reservoir"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.reservoir, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("basin") || tag.Value.StartsWith("stream"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.basin, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("restaurant"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.restaurant, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("water") || tag.Value.StartsWith("river"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.water, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else if (tag.Value.StartsWith("yes") || tag.Value.StartsWith("swimming") || tag.Value.StartsWith("parking"))
+                        {
+                            MapFeatureData.PropertiesValueStruct propertiesValueStruct = new MapFeatureData.PropertiesValueStruct(MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.yes, "");
+                            featurePropValues.Add(propertiesValueStruct);
+                        }
+                        else
+                        {
+                            featurePropKeys.RemoveAt(featurePropKeys.Count() - 1);
+                        }
+                        //else if (Enum.TryParse<MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum>(tag.Value, out convertedValue))
+                        //{
+                        //    propertiesValueStruct.PropertiesValues = convertedValue;
+                        //    propertiesValueStruct.name = "";
+                        //    featurePropValues.Add(propertiesValueStruct);
+                        //}
                     }
 
-                    featurePropKeys.Add(tag.Key);
-                    featurePropValues.Add(tag.Value);
                 }
 
                 if (featurePropKeys.Count != featurePropValues.Count)
@@ -210,9 +670,9 @@ public static class Program
                     throw new InvalidDataContractException("Property keys and values should have the same count");
                 }
 
-                var fData = new FeatureData
+                featuresData.Add(nodeId, new FeatureData
                 {
-                    Id = featureId,
+                    Id = nodeId,
                     GeometryType = (byte)GeometryType.Point,
                     Coordinates = (totalCoordinateCount, new List<Coordinate>
                     {
@@ -220,9 +680,7 @@ public static class Program
                     }),
                     PropertyKeys = (totalPropertyCount, featurePropKeys),
                     PropertyValues = (totalPropertyCount, featurePropValues)
-                };
-                featuresData.Add(featureId, fData);
-                featureIds.Add(featureId);
+                });
 
                 totalPropertyCount += featurePropKeys.Count;
                 ++totalCoordinateCount;
@@ -268,11 +726,11 @@ public static class Program
             // Record the current position in the stream
             var currentPosition = fileWriter.BaseStream.Position;
             // Seek back in the file to the position of the field
-            fileWriter.BaseStream.Position = coPosition;
+            fileWriter.Seek((int)coPosition, SeekOrigin.Begin);
             // Write the recorded 'currentPosition'
             fileWriter.Write(currentPosition); // TileBlockHeader: CoordinatesOffsetInBytes
-            // And seek forward to continue updating the file
-            fileWriter.BaseStream.Position = currentPosition;
+                                               // And seek forward to continue updating the file
+            fileWriter.Seek((int)currentPosition, SeekOrigin.Begin);
             foreach (var t in featureIds)
             {
                 var featureData = featuresData[t];
@@ -287,11 +745,11 @@ public static class Program
             // Record the current position in the stream
             currentPosition = fileWriter.BaseStream.Position;
             // Seek back in the file to the position of the field
-            fileWriter.BaseStream.Position = soPosition;
+            fileWriter.Seek((int)soPosition, SeekOrigin.Begin);
             // Write the recorded 'currentPosition'
             fileWriter.Write(currentPosition); // TileBlockHeader: StringsOffsetInBytes
-            // And seek forward to continue updating the file
-            fileWriter.BaseStream.Position = currentPosition;
+                                               // And seek forward to continue updating the file
+            fileWriter.Seek((int)currentPosition, SeekOrigin.Begin);
 
             var stringOffset = 0;
             foreach (var t in featureIds)
@@ -299,8 +757,12 @@ public static class Program
                 var featureData = featuresData[t];
                 for (var i = 0; i < featureData.PropertyKeys.keys.Count; ++i)
                 {
-                    ReadOnlySpan<char> k = featureData.PropertyKeys.keys[i];
-                    ReadOnlySpan<char> v = featureData.PropertyValues.values[i];
+                    ReadOnlySpan<char> k = Convert.ToString(featureData.PropertyKeys.keys[i]);
+                    ReadOnlySpan<char> v = Convert.ToString(featureData.PropertyValues.values[i]);
+
+                    Enum.TryParse(v.ToString(), out MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum myStatus);
+                    if (myStatus != MapFeatureData.PropertiesValueStruct.PropertiesValuesEnum.wetland)
+                        Console.WriteLine(k.ToString() + "---" + myStatus.ToString());
 
                     fileWriter.Write(stringOffset); // StringEntry: Offset
                     fileWriter.Write(k.Length); // StringEntry: Length
@@ -315,23 +777,23 @@ public static class Program
             // Record the current position in the stream
             currentPosition = fileWriter.BaseStream.Position;
             // Seek back in the file to the position of the field
-            fileWriter.BaseStream.Position = choPosition;
+            fileWriter.Seek((int)choPosition, SeekOrigin.Begin);
             // Write the recorded 'currentPosition'
             fileWriter.Write(currentPosition); // TileBlockHeader: CharactersOffsetInBytes
-            // And seek forward to continue updating the file
-            fileWriter.BaseStream.Position = currentPosition;
+                                               // And seek forward to continue updating the file
+            fileWriter.Seek((int)currentPosition, SeekOrigin.Begin);
             foreach (var t in featureIds)
             {
                 var featureData = featuresData[t];
                 for (var i = 0; i < featureData.PropertyKeys.keys.Count; ++i)
                 {
-                    ReadOnlySpan<char> k = featureData.PropertyKeys.keys[i];
+                    ReadOnlySpan<char> k = Convert.ToString(featureData.PropertyKeys.keys[i]);
                     foreach (var c in k)
                     {
                         fileWriter.Write((short)c);
                     }
 
-                    ReadOnlySpan<char> v = featureData.PropertyValues.values[i];
+                    ReadOnlySpan<char> v = Convert.ToString(featureData.PropertyValues.values[i]);
                     foreach (var c in v)
                     {
                         fileWriter.Write((short)c);
@@ -388,7 +850,7 @@ public static class Program
 
         public byte GeometryType { get; set; }
         public (int offset, List<Coordinate> coordinates) Coordinates { get; init; }
-        public (int offset, List<string> keys) PropertyKeys { get; init; }
-        public (int offset, List<string> values) PropertyValues { get; init; }
+        public (int offset, List<MapFeatureData.PropertiesKeysEnum> keys) PropertyKeys { get; init; }
+        public (int offset, List<MapFeatureData.PropertiesValueStruct> values) PropertyValues { get; init; }
     }
 }
