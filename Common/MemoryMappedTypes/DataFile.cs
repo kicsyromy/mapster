@@ -17,6 +17,9 @@ public delegate bool MapFeatureDelegate(MapFeatureData featureData);
 /// <summary>
 ///     Aggregation of all the data needed to render a map feature
 /// </summary>
+/// 
+
+
 public readonly ref struct MapFeatureData
 {
     public long Id { get; init; }
@@ -24,7 +27,83 @@ public readonly ref struct MapFeatureData
     public GeometryType Type { get; init; }
     public ReadOnlySpan<char> Label { get; init; }
     public ReadOnlySpan<Coordinate> Coordinates { get; init; }
-    public Dictionary<string, string> Properties { get; init; }
+    public enum EnumKeysProp { 
+            natural = 0,
+            place = 1,
+            boundry = 2,
+            admin_level = 3,
+            highway = 4,
+            water = 5,
+            railway = 6,
+            landuse = 7,
+            building = 9,
+            leisure - 10,
+            amenity = 11,
+            name = 12 
+    }
+
+    public struct StructValuesProp { 
+        public enum EnumValuesProp { 
+            fell = 0,
+            grassland = 0,
+            heath = 0,
+            moor = 0,
+            scrub = 0,
+            wetland = 0,
+            wood = 1,
+            tree_row = 1,
+            bare_rock = 2
+            rock = 2,
+            scree = 2,
+            beach = 3,
+            sand = 3,
+            water = 4,
+            city = 5,
+            town = 5,
+            locality = 5,
+            hamlet = 5,
+            administrative = 6,
+            motorway = 8,
+            trunk = 8,
+            primary = 8,
+            secondary = 8,
+            tertiary = 8,
+            unclassified = 8,
+            residential = 8,
+            road = 8,
+            forest = 9,
+            orchard = 9,
+            residential=10,
+            cemetery=10,
+            industrial=10,
+            commercial=10, 
+            square=10,
+            construction=10,
+            military=10,
+            quarry=10,
+            brownfield=10,
+            farm=11,
+            meadow=11,
+            grass=11,
+            greenfiel=11,
+            recreation_ground=11,
+            winter_sports=11,
+            allotments=11,
+            reservoir =12,
+            basin =12
+        };
+        
+        public EnumValuesProp PropValues { get; private set;}
+        public String name {get; private set;}
+
+        public StructValuesProp(EnumValuesProp property, String name): this() { 
+            this.name = name;
+            this.PropValues = property;
+        }
+
+    }
+
+    public Dictionary<EnumKeysProp, StructValuesProp> Properties { get; init; }
 }
 
 /// <summary>
