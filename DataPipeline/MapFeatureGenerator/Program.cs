@@ -1,8 +1,9 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using CommandLine;
+using System.Diagnostics;
 using Mapster.Common;
 using Mapster.Common.MemoryMappedTypes;
 using OSMDataParser;
@@ -92,7 +93,10 @@ public static class Program
             fileWriter.Write(tile.Key); // TileHeaderEntry: ID
             fileWriter.Write((long)0); // TileHeaderEntry: OffsetInBytes
         }
+        Stopwatch stopwatch1 = new Stopwatch();
+        Stopwatch stopwatch2 = new Stopwatch();
 
+        stopwatch1.Start();
         foreach (var (tileId, _) in mapData.Tiles)
         {
             // FIXME: Not thread safe
@@ -107,6 +111,10 @@ public static class Program
 
             var featuresData = new Dictionary<long, FeatureData>();
 
+            long firstComparition = 0;
+            long secondComparitions = 0;
+
+            stopwatch2.Start();
             foreach (var way in mapData.Ways)
             {
                 var featureId = Interlocked.Increment(ref featureIdCounter);
@@ -124,6 +132,7 @@ public static class Program
                 labels.Add(-1);
                 foreach (var tag in way.Tags)
                 {
+                    firstComparition++;
                     if (tag.Key == "name")
                     {
                         labels[^1] = totalPropertyCount * 2 + featureData.PropertyKeys.keys.Count * 2 + 1;
@@ -144,6 +153,7 @@ public static class Program
 
                     foreach (var (key, value) in node.Tags)
                     {
+                        secondComparitions++;
                         if (!featureData.PropertyKeys.keys.Contains(key))
                         {
                             featureData.PropertyKeys.keys.Add(key);
@@ -179,6 +189,11 @@ public static class Program
                 featureIds.Add(featureId);
                 featuresData.Add(featureId, featureData);
             }
+
+            stopwatch2.Stop();
+            Console.WriteLine("        foreach (var way in mapData.Ways) executed in {0} ms", stopwatch2.ElapsedMilliseconds);
+
+            Console.WriteLine("        First for runned for: {0} iterations and second for runned for {1} iterations", firstComparition, secondComparitions);
 
             foreach (var (nodeId, node) in mapData.Nodes.Where(n => !usedNodes.Contains(n.Key)))
             {
@@ -340,6 +355,9 @@ public static class Program
             }
         }
 
+        stopwatch1.Stop();
+        Console.WriteLine("    foreach (var (tileId, _) in mapData.Tiles) executed in {0} ms", stopwatch1.ElapsedMilliseconds);
+
         // Seek to the beginning of the file, just before the first TileHeaderEntry
         fileWriter.Seek(Marshal.SizeOf<FileHeader>(), SeekOrigin.Begin);
         foreach (var (tileId, offset) in offsets)
@@ -351,6 +369,7 @@ public static class Program
         fileWriter.Flush();
     }
 
+    static Stopwatch stopwatch = new Stopwatch();
     public static void Main(string[] args)
     {
         Options? arguments = null;
@@ -362,10 +381,18 @@ public static class Program
             Environment.Exit(-1);
         }
 
-        var mapData = LoadOsmFile(arguments!.OsmPbfFilePath);
-        CreateMapDataFile(ref mapData, arguments!.OutputFilePath!);
-    }
+        stopwatch.Start();
+            var mapData = LoadOsmFile(arguments!.OsmPbfFilePath);
+        stopwatch.Stop();
+        Console.WriteLine("LoadOsmFile executed in {0} ms", stopwatch.ElapsedMilliseconds);
 
+        stopwatch.Reset();
+        stopwatch.Start();
+            CreateMapDataFile(ref mapData, arguments!.OutputFilePath!);
+        stopwatch.Stop();
+        Console.WriteLine("CreateMapDataFile executed in {0} ms", stopwatch.ElapsedMilliseconds);
+
+    }
     public class Options
     {
         [Option('i', "input", Required = true, HelpText = "Input osm.pbf file")]
